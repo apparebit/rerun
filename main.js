@@ -1,4 +1,4 @@
-import { toWebAssembly, toWebAssemblyText } from './compile.js';
+import { toWebAssembly, toWebAssemblyText } from './src/compile.js';
 
 async function main() {
   const args = process.argv.splice(2);
