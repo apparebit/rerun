@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "singleQuote": true
+  }
+}
