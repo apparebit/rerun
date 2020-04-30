@@ -7,11 +7,11 @@ INFO  Checking Node.js
 INFO  Checking WABT
 INFO  Checking Yarn
 INFO  Happy, happy, joy, joy!
-$ node src/main.js p1 p2 add
+$ node main.js p1 p2 add
 rerun p1 p2 add --> 666
-$ node src/main.js p1 p2 add 3 div
+$ node main.js p1 p2 add 3 div
 rerun p1 p2 add 3 div --> 222
-$ node src/main.js p1 p2 add 3 div 2 div 3 4 add mul
+$ node main.js p1 p2 add 3 div 2 div 3 4 add mul
 rerun p1 p2 add 3 div 2 div 3 4 add mul --> 777
 ```
 

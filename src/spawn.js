@@ -2,7 +2,7 @@ import { spawn as doSpawn } from 'child_process';
 
 const { create } = Object;
 
-/** Runt the given command with arguments and options. */
+/** Run the given command with the CLI arguments and Node.js options. */
 export default function spawn(command, args = [], options = {}) {
   if (!options.stdio) options.stdio = `inherit`;
 
