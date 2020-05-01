@@ -1,13 +1,9 @@
+import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { readFile, unlink, writeFile } from 'fs/promises';
-import { resolve } from 'path';
 import spawn from './spawn.js';
 
-const ARITH_OPS = {
-  add: 2,
-  sub: 2,
-  mul: 2,
-  div: 2,
-};
+const tmp = fileURLToPath(new URL('../tmp/', import.meta.url));
 
 const scaffold = (body) => `
 (module
@@ -18,15 +14,6 @@ const scaffold = (body) => `
 
 /** Translate from the tokens of the rerun language to WAT. */
 export function toWebAssemblyText(tokens) {
-  // A rerun program consists of tokens that correspond to WASM instructions:
-  //         p1: load first i32 argument onto stack
-  //         p2: load second i32 argument onto stack
-  //        add: replace top two i32 values with sum
-  //        sub: replace top two i32 values with difference
-  //        mul: replace top two i32 values with product
-  //        rem: replace top two i32 values with remainder
-  //   <[0-9]+>: load literal value onto stack
-  // All operations are _unsigned_.
   const instructions = [];
   const emit = (instruction) => instructions.push(`${instruction}\n    `);
 
@@ -64,19 +51,21 @@ export function toWebAssemblyText(tokens) {
  * Translate from WAT to WASM. This function may take a while because it defers
  * to an external tool.
  */
-export async function toWebAssembly(assembly) {
+export async function toWebAssembly(assembly, { cleanup = true } = {}) {
   // The process number is a quick and evil hack to ensure that concurrently
   // running reruns don't interfere with each other.
   const stem = `rerun${process.pid}`;
-  const wat = resolve(`${stem}.wat`);
-  const wasm = resolve(`${stem}.wasm`);
+  const wat = join(tmp, `${stem}.wat`);
+  const wasm = join(tmp, `${stem}.wasm`);
 
   try {
     await writeFile(wat, assembly, 'utf8');
-    await spawn(`wat2wasm`, [wat, '-o', wasm]);
+    await spawn(`wat2wasm`, [wat, '-o', wasm], { cwd: tmp });
     return await readFile(wasm);
   } finally {
-    await unlink(wat);
-    await unlink(wasm);
+    if (cleanup) {
+      await unlink(wat);
+      await unlink(wasm);
+    }
   }
 }
