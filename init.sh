@@ -54,6 +54,16 @@ is_installed wat2wasm || brew install wabt;
 
 # ======================================== Rust
 
+info "Checking Rust"
+is_installed rustup || {
+  info "Installing Rust"
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+}
+
+info "Checking Rust WASM Target"
+rustup target list --installed | grep -q wasm32-unknown-unknown || {
+  rustup target add wasm32-unknown-unknown
+}
 
 # ========== Et Voila!
 info "Happy, happy, joy, joy!"
