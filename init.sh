@@ -1,4 +1,4 @@
-# ========== Helper Functions ==========
+# ======================================== Helpers
 
 init_init() {
   if [ -t 1 ]; then
@@ -26,8 +26,10 @@ is_installed() {
   command -v "$@" >/dev/null 2>&1
 }
 
-# ========== Preliminaries: Internal State and Homebrew ==========
 init_init
+
+# ======================================== Homebrew
+
 is_installed brew || {
   error "Please install Homebrew first"
   echo '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"'
@@ -37,15 +39,21 @@ is_installed brew || {
 info "Upgrading Homebrew"
 brew upgrade
 
-# ========== Make Sure Node.js, WABT, and Yarn Are Installed ==========
+# ======================================== JavaScript
 
 info "Checking Node.js"
 is_installed node || brew install node;
 
-info "Checking WABT"
-is_installed wat2wasm || brew install wabt;
-
 info "Checking Yarn"
 is_installed yarn || brew install yarn;
 
+# ======================================== WebAssembly
+
+info "Checking WABT"
+is_installed wat2wasm || brew install wabt;
+
+# ======================================== Rust
+
+
+# ========== Et Voila!
 info "Happy, happy, joy, joy!"
