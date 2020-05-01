@@ -1,0 +1,8 @@
+.coverage
+.DS_Store
+coverage
+node_modules
+TAP-*
+*.wat
+*.wasm
+crate/target
