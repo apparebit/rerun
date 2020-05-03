@@ -1,6 +1,11 @@
 {
   "cSpell.words": [
+    "MDN's",
     "WABT",
+    "binaryen",
+    "exponentiate",
+    "promisify",
+    "relib",
     "wasm"
   ]
 }
