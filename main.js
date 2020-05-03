@@ -3,6 +3,8 @@
 import { EOL } from 'os';
 import importWebAssembly from './js/import-wasm.js';
 
+const { create } = Object;
+
 // ANSI escape codes for redder or bolder output.
 const { isTTY } = process.stdout;
 const err = isTTY ? (s) => `\x1b[31;1m${s}\x1b[39;22m` : (s) => s;
@@ -14,7 +16,9 @@ const info = isTTY ? (s) => `\x1b[1m${s}\x1b[22m` : (s) => s;
  * respectively.
  */
 function getOptions(args) {
-  let options = {};
+  // `options` is indexed by keys from command line. Hence, make it a
+  // prototype-free object to prevent poisoning attacks via `--__proto__`.
+  let options = create(null);
 
   for (
     let index = 0;
