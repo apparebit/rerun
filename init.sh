@@ -52,6 +52,9 @@ is_installed yarn || brew install yarn;
 info "Checking WABT"
 is_installed wat2wasm || brew install wabt;
 
+info "Checking Binaryen"
+is_installed wasm-opt || brew install binaryen;
+
 # ======================================== Rust
 
 info "Checking Rust"
@@ -64,6 +67,11 @@ info "Checking Rust WASM Target"
 rustup target list --installed | grep -q wasm32-unknown-unknown || {
   rustup target add wasm32-unknown-unknown
 }
+
+# ======================================== Relib
+
+info "Building Relib"
+./build.sh
 
 # ========== Et Voila!
 info "Happy, happy, joy, joy!"
