@@ -1,15 +1,22 @@
 # _rerun_ (remote run)
 
-To run the code in this repository, your computer should have
-[Homebrew](https://brew.sh) installed.
+This repository contains a proof of concept for using WASM as the execution
+substrate for remote code execution. To be somewhat realistic, the PoC has two
+ways of generating WASM, i.e., it relies on `rustc` to compile code ahead of
+time and it implements its own template-based translation scheme to compile code
+at runtime. It instantiates both WASM modules, linking them with each other, and
+then runs the code.
+
+To run it yourself, your computer should have [Homebrew](https://brew.sh)
+installed.
 
 You pull in other necessary dependencies by executing `init.sh`. That script
-updates or installs [Node.js](https://nodejs.org/en/), the
+uses Homebrew to update or install [Node.js](https://nodejs.org/en/), the
 [WABT](https://github.com/WebAssembly/wabt) and
-[Binaryen](https://github.com/WebAssembly/binaryen) WebAssembly toolkits,
-and [Yarn](https://classic.yarnpkg.com/lang/en/), all via Homebrew. It also
-installs [Rust](https://www.rust-lang.org) as well as Rust's WASM target if they
-haven't been installed already.
+[Binaryen](https://github.com/WebAssembly/binaryen) WebAssembly toolkits, and
+[Yarn](https://classic.yarnpkg.com/lang/en/). It directly installs
+[Rust](https://www.rust-lang.org) and relies on `rustup` for installing Rust's
+WASM target, assuming that neither has been installed already.
 
 After successful installation, `init.sh` builds _relib_, rerun's Rust-based
 standard library. You can also build _relib_ by executing `build.sh`. Either
@@ -80,7 +87,7 @@ execution, even when hosts are located in completely different organizations.
     compiled from Rust.
 
 
-## The _rerun_ Language
+## The Details: The _rerun_ Language
 
 _rerun_ programs have no structure and consist of a stream of tokens. Each token
 is a self-contained instruction that manipulates a runtime stack by pushing a
@@ -104,7 +111,7 @@ The stack must consist of exactly one value when the _rerun_ program has no
 more instruction to execute. That value becomes the result of the computation.
 
 
-## Design Notes
+## Things That Are Missing
 
 This repository contains a basic proof of concept, focusing only on the
 interplay between high-level scripting language, dynamically compiled
@@ -138,17 +145,21 @@ of "event bus" or "publish/subscribe" facility. Apple's Bonjour née Rendezvous
 aka mDNS has some of the same properties.
 
 
-## Helpful Documentation
+## Getting Started with WebAssembly
+
+### Documentation
 
 I found [MDN's WebAssembly
 guides](https://developer.mozilla.org/en-US/docs/WebAssembly) helpful in
 learning how to use the JavaScript API and getting started writing WebAssembly
-Text code. Rust's [`wasm-bindgen`
+Text (WAT) code. Rust's [`wasm-bindgen`
 Guide](https://rustwasm.github.io/docs/wasm-bindgen/) and particularly the
 section on its [internal
 design](https://rustwasm.github.io/docs/wasm-bindgen/contributing/design/index.html)
 helped deepen my understanding of how JavaScript and Rust-generated WASM
-interact.
+interact in the current MVP (which only has four numeric types as value types
+and cannot pass references between WASM modules themselves and from/to
+JavaScript).
 
 I also found the code of the
 [rust-webpack-template](https://github.com/rustwasm/rust-webpack-template) and
@@ -156,16 +167,21 @@ the [Minimal Rust & WebAssembly
 example](https://www.hellorust.com/demos/add/index.html) helpful.
 
 
-# Debugging WASM Generation
+### Tooling
 
-`rustc` add custom sections with debug information despite being invoked with
-`-C debuginfo=0`. A look at resulting file size makes clear that, probably,
-there is debug information in the WASM file.
+`rustc` adds very large custom sections with debug information to the generated
+WASM despite being invoked with `-C debuginfo=0`. While I immediately suspected
+something like this, actually validating that hypothesis was a tad harder:
 
-  * Running `wasm2wat` on the WASM file does not print custom sections unless
-    invoked with `-v`.
-  * Running `wasm-objdump -h` on the WASM file prints all sections including
-    those with debug information.
+  * Running `wasm2wat` on a WASM file does not print custom sections unless
+    invoked with `-v`. In that case, the tool prints SAX-like events while
+    parsing the WASM.
+  * Running `wasm-objdump -h` on the WASM file is the more suitable alternative,
+    as it prints all sections including those with debug information.
   * Running `wasm-opt --strip-debug` on the WASM file removes all custom
     sections with debug information.
   * LTO is not enabled by default but also makes a big difference for file size.
+
+Note that `wasm2wat`, `wat2wasm`, and `wasm-objdump` are shipped with WABT,
+whereas `wasm-opt` is part of Binaryen. In short, if you are targeting WASM, you
+probably want both toolkits installed.
