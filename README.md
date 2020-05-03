@@ -1,39 +1,52 @@
 # _rerun_ (remote run)
 
 To run the code in this repository, your computer should have
-[Homebrew](https://brew.sh) installed. You pull in other necessary dependencies
-by executing `init.sh`. That script updates or installs
-[Node.js](https://nodejs.org/en/), the [WebAssembly Binary Toolkit
-(WABT)](https://github.com/WebAssembly/wabt), and
-[Yarn](https://classic.yarnpkg.com/lang/en/), all via Homebrew. It also installs
-[Rust](https://www.rust-lang.org) if not already installed and Rust's WASM
-target.
+[Homebrew](https://brew.sh) installed.
+
+You pull in other necessary dependencies by executing `init.sh`. That script
+updates or installs [Node.js](https://nodejs.org/en/), the
+[WABT](https://github.com/WebAssembly/wabt) and
+[Binaryen](https://github.com/WebAssembly/binaryen) WebAssembly toolkits,
+and [Yarn](https://classic.yarnpkg.com/lang/en/), all via Homebrew. It also
+installs [Rust](https://www.rust-lang.org) as well as Rust's WASM target if they
+haven't been installed already.
+
+After successful installation, `init.sh` builds _relib_, rerun's Rust-based
+standard library. You can also build _relib_ by executing `build.sh`. Either
+way, the resulting _relib_ binary is in `wasm/relib.wasm`.
 
 ```console
 $ ./init.sh
 INFO  Upgrading Homebrew
 INFO  Checking Node.js
 INFO  Checking WABT
+INFO  Checking Binaryen
 INFO  Checking Yarn
+INFO  Checking Rust
 INFO  Checking Rust WASM Target
+INFO  Building Relib
 INFO  Happy, happy, joy, joy!
 ```
 
-To run _rerun_ code, you invoke `node` with this repository's `main.js` script.
-The _rerun_ code follows as command line arguments, e.g., `node main.js 665`.
+To run _rerun_ code, you invoke `node` on this repository's `main.js` script and
+provide the _rerun_ code as command line arguments. Since the script has the
+necessary shebang comment and file permission, you can even omit the `node`
+command, e.g., `./main.js 665`.
 
-Intermediate `.wat` and `.wasm` files are written into the `tmp` directory and,
+Intermediate `.wat` and `.wasm` files are written into the `wasm` directory and,
 by default, also deleted again. You can prevent their deletion by adding the
-`--no-cleanup` command line option between script name and the first
-_rerun_ token, e.g., `node main.js --no-cleanup 665`.
+`--no-cleanup` command line option between script name and the first _rerun_
+instruction, e.g., `./main.js --no-cleanup 665`.
 
 ```console
-$ node main.js p1 p2 add
+$ ./main.js p1 p2 add
 rerun p1 p2 add --> 666
-$ node main.js p1 p2 add 3 div
+$ ./main.js p1 p2 add 3 div
 rerun p1 p2 add 3 div --> 222
-$ node main.js p1 p2 add 3 div 2 div 3 4 add mul
+$ ./main.js p1 p2 add 3 div 2 div 3 4 add mul
 rerun p1 p2 add 3 div 2 div 3 4 add mul --> 777
+$ ./main.js 2 3 cpow
+rerun 2 3 cpow --> 8
 ```
 
 ## The Big Picture
@@ -44,7 +57,7 @@ execution, even when hosts are located in completely different organizations.
  1. Code is written in a high-level language with domain-specific extensions.
     Requests for remote execution include the code in the same format.
 
-    Here: _rerun_, a novel stack-based language for uint32 computations.
+    Here: _rerun_, a contrived stack-based language for uint32 computations.
 
  2. The gate-keeping API authenticates the sender of a request, verifies that
     the code meets higher-level security constraints, possibly adds enforcement
@@ -52,15 +65,19 @@ execution, even when hosts are located in completely different organizations.
     an attractive execution substrate because it runs at close to native speeds
     yet by design preserves memory safety and enforces isolation.
 
-    Here: _rerun_ is compiled to _wat_ is compiled to _wasm_.
+    Here: _rerun_ is compiled to _wat_ by `toWebAssemblyText()` through template
+    instantiation and then _wat_ is compiled to _wasm_ by `toWebAssembly()` with
+    help of WABT.
 
- 3. The resulting module is then handed off to a worker that loads, compiles,
-    links, and runs the program. The linking step is noteworthy here because it
-    determines what resources beyond memory and computation the code will be
-    able to access. As long as the security policy allows it, that may include
-    (semistructured) storage as well as remote messaging. If the policy does not
-    allow it, the linker provides an alternative implementation that simply
-    errors.
+ 3. The resulting module is then handed off to a worker that loads the WASM,
+    compiles it down to native code, links the native code, and runs the native
+    code. The linking step is noteworthy because it determines what resources
+    beyond memory and computation the code will be able to access. In other
+    words, linking becomes an opportunity to enforce security constraints. In
+    that, WebAssembly's design reflects best-practices capability-based designs.
+
+    Here: _wasm_ compiled from _rerun_ is linked with another WASM module
+    compiled from Rust.
 
 
 ## The _rerun_ Language
@@ -78,34 +95,77 @@ both. Valid tokens are:
   * `add`, `div`, `mul`, `rem`, and `sub` implement the binary arithmetic
     operations implied by their names by popping the top two values from the
     stack and thereafter pushing the result onto the stack.
-  * __Not yet supported and subject to change__: A token starting with a `c` and
-    followed by at least one more letter results in a call to the eponymous
-    _rerun_ standard library function. Currently, the standard library is rather
-    sparse and only supports `cpow`, which implements exponentiation.
+  * A token starting with a `c` and followed by at least one more letter results
+    in a call to the eponymous rerun standard library function. The library
+    specification currently includes a single function `pow`. It is implemented
+    in Rust by a function `exponentiate`.
 
 The stack must consist of exactly one value when the _rerun_ program has no
-more tokens to execute. That value becomes the result of the computation.
+more instruction to execute. That value becomes the result of the computation.
 
 
-## Notes
+## Design Notes
 
-Things a real system should have:
+This repository contains a basic proof of concept, focusing only on the
+interplay between high-level scripting language, dynamically compiled
+application-specific language, and ahead-of-time compiled library code written
+in a systems language. Obviously, a real system would offer quite a few more
+features, including:
 
-  * HTTPS
-  * Authentication
+  * API over HTTPS
+  * Authentication, authorization
   * Richer source language
   * Resource controls
   * Persistent storage
-  * Message ports
+  * Remote messaging
 
-The last one is interesting because it requires some naming scheme. It's easy
-enough to reuse web naming conventions and, probably, not a bad start. But that
-requires careful consideration of whether names should be specific to a
-host/location or if they name some abstract resource, with automatic resolution.
+The last point is particularly interesting because it requires some way of
+naming other locations and nodes. It's easy enough to follow web naming
+conventions, i.e., utilize URLs with a new protocol prefix. Nonetheless, naming
+is one of the hardest things to get right and there are subtle challenges here
+as well. For example, `http` and `https` URLs name specific resources at
+specific locations. That makes them relatively easy to create and resolve, but
+also means that the named resources may just vanish at any moment. A more
+persistent naming scheme typically requires a level of indirection and thereby
+becomes more heavyweight in all aspects, including name registration, name
+maintenance, and name resolution.
+
+Both approaches assume that names are resolved per session. Not surprisingly,
+that also is HTTP's model, with connections lasting for some time. But for
+connecting computer services that may just fail or migrate, _late binding_ of
+messages has been a more successful model and usually is provided by some kind
+of "event bus" or "publish/subscribe" facility. Apple's Bonjour née Rendezvous
+aka mDNS has some of the same properties.
 
 
-## Acknowledgements
+## Helpful Documentation
 
-The [rust-webpack-template](https://github.com/rustwasm/rust-webpack-template)
-certainly was helpful in getting Rust to play nice. So was the [Minimal Rust &
-WebAssembly example](https://www.hellorust.com/demos/add/index.html).
+I found [MDN's WebAssembly
+guides](https://developer.mozilla.org/en-US/docs/WebAssembly) helpful in
+learning how to use the JavaScript API and getting started writing WebAssembly
+Text code. Rust's [`wasm-bindgen`
+Guide](https://rustwasm.github.io/docs/wasm-bindgen/) and particularly the
+section on its [internal
+design](https://rustwasm.github.io/docs/wasm-bindgen/contributing/design/index.html)
+helped deepen my understanding of how JavaScript and Rust-generated WASM
+interact.
+
+I also found the code of the
+[rust-webpack-template](https://github.com/rustwasm/rust-webpack-template) and
+the [Minimal Rust & WebAssembly
+example](https://www.hellorust.com/demos/add/index.html) helpful.
+
+
+# Debugging WASM Generation
+
+`rustc` add custom sections with debug information despite being invoked with
+`-C debuginfo=0`. A look at resulting file size makes clear that, probably,
+there is debug information in the WASM file.
+
+  * Running `wasm2wat` on the WASM file does not print custom sections unless
+    invoked with `-v`.
+  * Running `wasm-objdump -h` on the WASM file prints all sections including
+    those with debug information.
+  * Running `wasm-opt --strip-debug` on the WASM file removes all custom
+    sections with debug information.
+  * LTO is not enabled by default but also makes a big difference for file size.
