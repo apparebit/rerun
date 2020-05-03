@@ -1,11 +1,12 @@
-import { EOL } from 'os';
-import { toWebAssembly, toWebAssemblyText } from './js/compile.js';
+#!/usr/bin/env node
 
+import { EOL } from 'os';
+import importWebAssembly from './js/import-wasm.js';
+
+// ANSI escape codes for redder or bolder output.
 const { isTTY } = process.stdout;
-const SGR = {
-  BOLD1: isTTY ? '\x1b[1m' : '',
-  BOLD0: isTTY ? '\x1b[22m' : '',
-};
+const err = isTTY ? (s) => `\x1b[31;1m${s}\x1b[39;22m` : (s) => s;
+const info = isTTY ? (s) => `\x1b[1m${s}\x1b[22m` : (s) => s;
 
 /**
  * Extract command line options. This function only recognizes `--name`
@@ -41,16 +42,13 @@ function getOptions(args) {
   // Separate options from rerun code.
   let rerun = process.argv.splice(2);
   const options = getOptions(rerun);
-  if (rerun.length === 0) rerun = ['665'];
 
-  // Compile rerun code to WASM via textual assembly.
-  const wat = toWebAssemblyText(rerun);
-  const wasm = await toWebAssembly(wat, options);
-
-  // Compile WASM to native code and run it.
-  const { instance } = await WebAssembly.instantiate(wasm);
-  const result = instance.exports.compute(665, 1);
-
-  // Print the result.
-  console.log(`${SGR.BOLD1}rerun ${rerun.join(' ')} --> ${result}${SGR.BOLD0}`);
+  try {
+    // (1) Compile to and import web assembly. (2) Run code. (3) Print result.
+    const wasm = await importWebAssembly(rerun, options);
+    const result = wasm.exports.compute(665, 1);
+    console.log(info(`rerun ${rerun.join(' ')} --> ${result}`));
+  } catch (x) {
+    console.error(err(x.message));
+  }
 })();
