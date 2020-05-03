@@ -185,3 +185,7 @@ something like this, actually validating that hypothesis was a tad harder:
 Note that `wasm2wat`, `wat2wasm`, and `wasm-objdump` are shipped with WABT,
 whereas `wasm-opt` is part of Binaryen. In short, if you are targeting WASM, you
 probably want both toolkits installed.
+
+---
+
+__rerun__ is © 2020 Robert Grimm and licensed under [MIT](LICENSE) terms.
